@@ -24,6 +24,39 @@ clf=GaussianNB()
 clf_sgd=linear_model.SGDClassifier()
 counter_sgd=0
 
+PA_I_online = PassiveAggressiveClassifier(loss='hinge')
+counter_pareg=0
+
+def pareg(train):
+    X=train.select('message').collect()
+    global counter_pareg
+    global PA_I_online
+    counter_pareg+=1
+    X=[i['message'] for i in X]
+    stop_words=['a','an','the','.',',',' \n','\n','i','me','my','myself','we','our','ours','ourselves','theirs','themselves','what','which','who','whom','this','that','these','those']
+
+    vectorizer = HashingVectorizer(n_features=100000,stop_words=stop_words)
+    
+    
+    
+    X = vectorizer.fit_transform(X)
+    
+   
+    
+    y=train.select('label').collect()
+    y=np.array([i[0] for i in np.array(y)])
+    no_of_classes=np.unique(y)
+    
+    PA_I_online.partial_fit(X,y,no_of_classes)
+
+    if counter_pareg ==303: 
+        #save model into pickle file 
+        with open('PAREGmodel', 'wb') as files:
+             pickle.dump(PA_I_online, files)
+        return
+    PassiveAggressiveClassifier(loss='hinge')
+
+
 def SgdClassifierGoTest(train):
     global clf_sgd
     global counter_sgd
@@ -155,10 +188,11 @@ def sender(df):
     pipeline = Pipeline(stages=stages)
     data = pipeline.fit(df).transform(df)
     print(data)
-    #train, test = data.randomSplit([0.7, 0.3], seed = 2018)
+    train, test = data.randomSplit([0.7, 0.3], seed = 2018)
      
     #naiveBayesClassifierGo(data)
     SgdClassifierGoTest(data)     #when to call sgd classifier 
+    #pareg(train) #call when needed
   
     
     
