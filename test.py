@@ -28,15 +28,23 @@ from classification import pipeline
 
 from sklearn.metrics import accuracy_score
 
+from nltk.stem import PorterStemmer
+from nltk.tokenize import word_tokenize
+from sklearn.metrics import classification_report
+
 def prediction_vals(test):
-    with open('SGDmodel_1000' , 'rb') as f:
+    with open('NBmodel1000_16FEATURES' , 'rb') as f:
         clf_test_model=pickle.load(f)
         
         X=test.select('message').collect()
     
         X=[i['message'] for i in X]
-        vectorizer = HashingVectorizer(n_features=100000)
+        vectorizer = HashingVectorizer(n_features=2**4)#100000 features
+        ps = PorterStemmer()
     
+        for wd in range(len(X)):
+            X[wd]=ps.stem(X[wd])
+        
         X = vectorizer.fit_transform(X)
         X=X.toarray()
         
@@ -49,6 +57,7 @@ def prediction_vals(test):
         #accuracy print
         #acc=clf_test_model.score(X,y)
         print(np.mean(pred_vals_holder==y))
+        print(classification_report(y,pred_vals_holder))
 
 sc = SparkContext("local[2]", "spam")
     
@@ -162,4 +171,3 @@ if __name__ == '__main__':
     # Start processing after all the transformations have been setup
     ssc.start()             # Start the computation
     ssc.awaitTermination()  # Wait for the computation to terminate
-
