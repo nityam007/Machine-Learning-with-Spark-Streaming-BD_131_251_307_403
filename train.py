@@ -1,27 +1,26 @@
 import json
-
 from pyspark import SparkContext, SparkConf
 from pyspark.streaming import StreamingContext
 from pyspark.sql import SQLContext, Row, SparkSession
 from pyspark.sql.types import *
-
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
-
-
 from pyspark.ml.feature import *
-
+from pyspark.sql.functions import udf
 from classification import pipeline
-#from classification_models.pipeline_sparkml import custom_model_pipeline, ml_algorithm
+from nltk.stem.snowball import SnowballStemmer
 
-# Create a local StreamingContext with two execution threads
+# Use English stemmer.
+stemmer = SnowballStemmer("english")
 sc = SparkContext("local[2]", "spam")
-    
+import nltk
 spark = SparkSession \
 .builder \
 .config(conf=SparkConf()) \
 .getOrCreate()
-
+nltk.download('stopwords')
+from nltk.corpus import stopwords
+from pyspark.sql.functions import udf
 # Batch interval of 5 seconds - TODO: Change according to necessity
 ssc = StreamingContext(sc, 5)
 
@@ -39,17 +38,6 @@ schema = StructType([
 ])
 
     
-# def cleaner(df):
-#     tokenizer1 = Tokenizer(inputCol="subject", outputCol="revised_subject")
-#     tokenizer2 = Tokenizer(inputCol="message", outputCol="revised_message")
-#     df = tokenizer1.transform(df)	 #Transforms the dataset into a new dataset after applying all the changes
-#     df = tokenizer2.transform(df)	 #Transforms the dataset into a new dataset after applying all the changes
-#                                 # Needs no saving
-#     remover = StopWordsRemover(inputCol="revised_subject", outputCol="filtered_subject")
-    
-#     df = remover.transform(df).show(truncate=False)
-#     #df.show()
-    
 # Process each stream - needs to run ML models
 def process(rdd):
     
@@ -66,11 +54,13 @@ def process(rdd):
     
     # Create a DataFrame with each stream	
     df = spark.createDataFrame((Row(**d) for d in val_holder), schema)
-    
-    #df.show()
-    
-    #cleaner(df)
-    pipeline(df)
+    stop_words = stopwords.words('english')
+    trial=udf(lambda x: ' '.join([word for word in x.split() if word not in (stop_words)]))
+    df=df.withColumn('message',trial('message'))
+    trial2=udf(lambda x: [stemmer.stem(y) for y in x])
+    df=df.withColumn('message',trial2('message'))
+    #df['message'] = df['message'].apply(lambda x: ' '.join([word for word in x.split() if word not in (stop_words)]))
+    pipeline.sender(df)
 
     
 
@@ -89,3 +79,6 @@ if __name__ == '__main__':
     # Start processing after all the transformations have been setup
     ssc.start()             # Start the computation
     ssc.awaitTermination()  # Wait for the computation to terminate
+
+
+#sign of completion - dvs
