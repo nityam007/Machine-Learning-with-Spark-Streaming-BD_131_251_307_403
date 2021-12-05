@@ -1,63 +1,92 @@
 from pyspark.ml.feature import *
 from pyspark.ml import Pipeline
 #import * from sklearn
-from pyspark.ml.classification import NaiveBayes
-from pyspark.ml.evaluation import BinaryClassificationEvaluator
-from pyspark.ml.evaluation import MulticlassClassificationEvaluator
-from pyspark.ml.classification import RandomForestClassifier
 import numpy as np
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.naive_bayes import GaussianNB
 from sklearn.feature_extraction.text import HashingVectorizer
 import pickle
+import nltk
+nltk.download('stopwords')
+from nltk.stem.snowball import SnowballStemmer
 
-import json
-
+# Use English stemmer.
+stemmer = SnowballStemmer("english")
+from nltk.corpus import stopwords
 from pyspark import SparkContext, SparkConf
 from pyspark.streaming import StreamingContext
 from pyspark.sql import SQLContext, Row, SparkSession
 from pyspark.sql.types import *
-
+import json
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
-
-
 from pyspark.ml.feature import *
-
-from classification import pipeline
 
 from sklearn.metrics import accuracy_score
 
-from nltk.stem import PorterStemmer
-from nltk.tokenize import word_tokenize
-from sklearn.metrics import classification_report
-
 def prediction_vals(test):
-    with open('NBmodel1000_16FEATURES' , 'rb') as f:
-        clf_test_model=pickle.load(f)
+    # with open('NBmodel' , 'rb') as f:
+    #     clf_test_model=pickle.load(f)
         
-        X=test.select('message').collect()
+    #     X=test.select('message').collect()
     
-        X=[i['message'] for i in X]
-        vectorizer = HashingVectorizer(n_features=2**4)#100000 features
-        ps = PorterStemmer()
+    #     X=[i['message'] for i in X]
+    #     vectorizer = HashingVectorizer(n_features=100)
     
-        for wd in range(len(X)):
-            X[wd]=ps.stem(X[wd])
+    #     X = vectorizer.fit_transform(X)
+    #     X=X.toarray()
         
-        X = vectorizer.fit_transform(X)
-        X=X.toarray()
+    #     y=test.select('label').collect()
+    #     y=np.array([i[0] for i in np.array(y)])
         
-        y=test.select('label').collect()
-        y=np.array([i[0] for i in np.array(y)])
+    #     pred_vals_holder = clf_test_model.predict(X)
         
-        pred_vals_holder = clf_test_model.predict(X)
+    #     acc=accuracy_score(y, pred_vals_holder)
+    #     #accuracy print
+    #     #acc=clf_test_model.score(X,y)
+    #     print(acc)
+
+
+        # with open('PAREGmodel' , 'rb') as f:
+        #     clf2_test_model=pickle.load(f)
+            
+        #     X=test.select('message').collect()
         
-        acc=accuracy_score(y, pred_vals_holder)
-        #accuracy print
-        #acc=clf_test_model.score(X,y)
-        print(np.mean(pred_vals_holder==y))
-        print(classification_report(y,pred_vals_holder))
+        #     X=[i['message'] for i in X]
+        #     vectorizer = HashingVectorizer(n_features=100)
+        
+        #     X = vectorizer.fit_transform(X)
+        #     X=X.toarray()
+            
+        #     y=test.select('label').collect()
+        #     y=np.array([i[0] for i in np.array(y)])
+            
+        #     pred_vals_holder = clf2_test_model.predict(X)
+            
+        #     acc=accuracy_score(y, pred_vals_holder)
+        #     #accuracy print
+        #     #acc=clf_test_model.score(X,y)
+        #     print(acc)
+
+
+        with open('SGDmodel' , 'rb') as f:
+            clf2_test_model=pickle.load(f)
+            
+            X=test.select('message').collect()
+        
+            X=[i['message'] for i in X]
+            vectorizer = HashingVectorizer(n_features=100)
+        
+            X = vectorizer.fit_transform(X)
+            X=X.toarray()
+            
+            y=test.select('label').collect()
+            y=np.array([i[0] for i in np.array(y)])
+            
+            pred_vals_holder = clf2_test_model.predict(X)
+            
+            acc=accuracy_score(y, pred_vals_holder)
+            #accuracy print
+            #acc=clf_test_model.score(X,y)
+            print(acc)
 
 sc = SparkContext("local[2]", "spam")
     
@@ -83,45 +112,15 @@ schema = StructType([
 ])
 
     
-# def cleaner(df):
-#     tokenizer1 = Tokenizer(inputCol="subject", outputCol="revised_subject")
-#     tokenizer2 = Tokenizer(inputCol="message", outputCol="revised_message")
-#     df = tokenizer1.transform(df)	 #Transforms the dataset into a new dataset after applying all the changes
-#     df = tokenizer2.transform(df)	 #Transforms the dataset into a new dataset after applying all the changes
-#                                 # Needs no saving
-#     remover = StopWordsRemover(inputCol="revised_subject", outputCol="filtered_subject")
-    
-#     df = remover.transform(df).show(truncate=False)
-#     #df.show()
+
 
 def sender(df):
+    
     stages = []
-# 1. clean data and tokenize sentences using RegexTokenizer
-    regexTokenizer = RegexTokenizer(inputCol="message", outputCol="tokens", pattern="\\W+")
-    stages += [regexTokenizer]
-
-# 2. CountVectorize the data
-    '''vectorizer = HashingVectorizer(n_features=2**4)
-    
-    X=df.select('tokens')
-    
-    print('After selecting X:',X)
- 
-    
-    X = vectorizer.fit_transform(corpus)'''
-    
-    cv = CountVectorizer(inputCol="tokens", outputCol="token_features", minDF=2.0)#, vocabSize=3, minDF=2.0
-    stages += [cv]
 
 # 3. Convert the labels to numerical values using binariser
     indexer = StringIndexer(inputCol="spam/ham", outputCol="label")
     stages += [indexer]
-
-# 4. Vectorise features using vectorassembler
-    vecAssembler = VectorAssembler(inputCols=['token_features'], outputCol="features")
-    stages += [vecAssembler]
-    
-    #[print('\n', stage) for stage in stages]
 
 
     pipeline = Pipeline(stages=stages)
@@ -130,7 +129,6 @@ def sender(df):
     #test = data.randomSplit([0.7, 0.3], seed = 2018)
      
     prediction_vals(data)
-    #randomForestCLassifier(train,test,data)
         
 # Process each stream - needs to run ML models
 def process(rdd):
@@ -152,6 +150,12 @@ def process(rdd):
     #df.show()
     
     #cleaner(df)
+    df = spark.createDataFrame((Row(**d) for d in val_holder), schema)
+    stop_words = stopwords.words('english')
+    trial=udf(lambda x: ' '.join([word for word in x.split() if word not in (stop_words)]))
+    df=df.withColumn('message',trial('message'))
+    trial2=udf(lambda x: [stemmer.stem(y) for y in x])
+    df=df.withColumn('message',trial2('message'))
     sender(df)
 
     
@@ -171,3 +175,4 @@ if __name__ == '__main__':
     # Start processing after all the transformations have been setup
     ssc.start()             # Start the computation
     ssc.awaitTermination()  # Wait for the computation to terminate
+
