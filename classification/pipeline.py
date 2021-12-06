@@ -7,7 +7,7 @@ import pickle
 from sklearn import linear_model
 from pyspark.ml import Pipeline
 from sklearn.linear_model import PassiveAggressiveClassifier
-
+from sklearn.cluster import MiniBatchKMeans
 counter_pareg=0
 counter_sgd=0
 counter_nb=0
@@ -16,7 +16,7 @@ mbk_counter=0
 PA_I_online = PassiveAggressiveClassifier(loss='hinge')
 clf_sgd=linear_model.SGDClassifier()
 clf=GaussianNB()
-
+mbk = MiniBatchKMeans(n_clusters=2, init='k-means++',batch_size=500) # Batch size needs to be varied
 
 
 
@@ -28,6 +28,23 @@ def hashvectorizer(train):
     y=train.select('label').collect()
     y=np.array([i[0] for i in np.array(y)])
     return X,y
+
+
+
+
+
+def ClusteringGo(train):
+    global mbk
+    global mbk_counter
+    mbk_counter+=1
+    X,y=hashvectorizer(train)
+    mbk.partial_fit(X)
+    if mbk_counter == 60: #counter_sgd is 30 when batch size is 1000 and 303 when batch size is 100 and 60 when the batch size is 500
+        #save model into pickle file 
+        with open('MiniBatchKmeans_500', 'wb') as files:
+             pickle.dump(mbk, files)
+    MiniBatchKMeans(n_clusters=2, init='k-means++',batch_size=500) # Batch size needs to be varied
+
 
 
 def pareg(train):
