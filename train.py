@@ -46,14 +46,16 @@ def process(rdd):
     # Collect all records
     rdds = rdd.collect()
     
-    # List of dicts
-    val_holder = [i for j in rdds for i in list(json.loads(j).values())]
-    
-    if len(val_holder) == 0:
+    # List of dicts i for j in rdds for i in list(json.loads(j).values())
+    values_keeper = []
+    for j in rdds :
+        for i in list(json.loads(j).values()):
+            values_keeper.append(i)
+    if len(values_keeper) == 0:
         return
     
     # Create a DataFrame with each stream	
-    df = spark.createDataFrame((Row(**d) for d in val_holder), schema)
+    df = spark.createDataFrame((Row(**d) for d in values_keeper), schema)
     stop_words = stopwords.words('english')
     trial=udf(lambda x: ' '.join([word for word in x.split() if word not in (stop_words)]))
     df=df.withColumn('message',trial('message'))
