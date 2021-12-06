@@ -46,9 +46,11 @@ def process(rdd):
     # Collect all records
     rdds = rdd.collect()
     
-    # List of dicts
-    val_holder = [i for j in rdds for i in list(json.loads(j).values())]
-    
+    # List of dicts i for j in rdds for i in list(json.loads(j).values())
+    val_holder = []
+    for j in rdds :
+        for i in list(json.loads(j).values()):
+            val_holder.append(i)
     if len(val_holder) == 0:
         return
     
